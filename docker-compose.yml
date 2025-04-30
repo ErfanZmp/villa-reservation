@@ -1,0 +1,79 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data
+    ports:
+      - "9000:9000"
+    volumes:
+      - minio_data:/data
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+  villa-service:
+    build: ./villa-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - minio
+
+  reservation-service:
+    build: ./reservation-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  media-service:
+    build: ./media-service
+    ports:
+      - "8004:8004"
+    env_file:
+      - .env
+    depends_on:
+      - minio
+
+  otp-service:
+    build: ./otp-service
+    ports:
+      - "8005:8005"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
+  minio_data:
