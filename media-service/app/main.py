@@ -7,7 +7,7 @@ import uuid
 load_dotenv()
 app = FastAPI()
 
-@app.post("/media/upload")
+@app.post("/media/upload", tags=["media"])
 async def upload_image(file: UploadFile = File(...)):
     try:
         file_id = str(uuid.uuid4())
@@ -24,10 +24,14 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/media/{image_id}")
+@app.get("/media/{image_id}", tags=["media"])
 async def get_image(image_id: str):
     try:
         response = minio_client.get_object("villa-images", image_id)
         return {"data": response.read()}
     except Exception as e:
         raise HTTPException(status_code=404, detail="Image not found")
+    
+@app.get("/", tags=["root"], summary="Root Endpoint of the Media Service")
+async def read_root():
+    return {"message": "Media Service is running"}

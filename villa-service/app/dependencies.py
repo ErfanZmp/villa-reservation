@@ -1,5 +1,4 @@
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from .models import SessionLocal
 import httpx
 from dotenv import load_dotenv

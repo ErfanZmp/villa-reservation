@@ -13,17 +13,20 @@ class OTPValidateRequest(BaseModel):
     phone_number: str
     otp: str
 
-@app.post("/otp/generate")
+@app.post("/otp/generate", tags=["otp"])
 async def generate_otp(request: OTPRequest):
     otp = ''.join(random.choices(string.digits, k=6))
     redis_client.setex(f"otp:{request.phone_number}", 300, otp)  # 5-minute TTL
-    # In production, integrate with an SMS gateway
     return {"message": "OTP generated", "otp": otp}  # For testing
 
-@app.post("/otp/validate")
+@app.post("/otp/validate", tags=["otp"])
 async def validate_otp(request: OTPValidateRequest):
     stored_otp = redis_client.get(f"otp:{request.phone_number}")
     if not stored_otp or stored_otp.decode() != request.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
     redis_client.delete(f"otp:{request.phone_number}")
     return {"message": "OTP validated"}
+
+@app.get("/", tags=["root"], summary="Root Endpoint of the OTP Service")
+async def read_root():
+    return {"message": "OTP Service is running"}
