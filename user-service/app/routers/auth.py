@@ -65,7 +65,7 @@ async def login(request: LoginRequest):
         response = await client.post(f"{OTP_SERVICE_URL}/otp/generate", json={"phone_number": request.phone_number})
         if response.status_code != 200:
             raise HTTPException(status_code=500, detail="Failed to generate OTP")
-    return {"message": "OTP sent to phone number"}
+    return {"message": "OTP sent to phone number", "otp_response": response.json()}
 
 @router.post("/login/verify")
 async def login_verify(request: LoginVerifyRequest, db: Session = Depends(get_db)):
