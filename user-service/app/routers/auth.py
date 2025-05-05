@@ -33,6 +33,8 @@ class LoginVerifyRequest(BaseModel):
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.phone_number == request.phone_number).first():
         raise HTTPException(status_code=400, detail="Phone number already registered")
+    if db.query(User).filter(User.national_code == request.national_code).first():
+        raise HTTPException(status_code=400, detail="National code already registered")
     async with httpx.AsyncClient() as client:
         response = await client.post(f"{OTP_SERVICE_URL}/otp/generate", json={"phone_number": request.phone_number})
         if response.status_code != 200:
@@ -60,7 +62,10 @@ async def signup_verify(request: SignupVerifyRequest, signup_data: SignupRequest
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login")
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.phone_number == request.phone_number).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User with this phone number does not exist")
     async with httpx.AsyncClient() as client:
         response = await client.post(f"{OTP_SERVICE_URL}/otp/generate", json={"phone_number": request.phone_number})
         if response.status_code != 200:
