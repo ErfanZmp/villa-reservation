@@ -26,3 +26,7 @@ async def validate_otp(request: OTPValidateRequest):
         raise HTTPException(status_code=400, detail="Invalid OTP")
     redis_client.delete(f"otp:{request.phone_number}")
     return {"message": "OTP validated"}
+
+@app.get("/", tags=["root"], summary="Root Endpoint of OTP Service")
+def read_root():
+    return {"message": "OTP Service"}
