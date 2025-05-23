@@ -39,7 +39,7 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         response = await client.post(f"{OTP_SERVICE_URL}/otp/generate", json={"phone_number": request.phone_number})
         if response.status_code != 200:
             raise HTTPException(status_code=500, detail="Failed to generate OTP")
-    return {"message": "OTP sent to phone number"}
+    return {"message": "OTP sent to phone number", "otp_response": response.json()}
 
 @router.post("/signup/verify")
 async def signup_verify(request: SignupVerifyRequest, signup_data: SignupRequest, db: Session = Depends(get_db)):
