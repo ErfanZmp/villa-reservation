@@ -5,7 +5,17 @@ from .routers import auth, users
 from dotenv import load_dotenv
 
 load_dotenv()
-app = FastAPI()
+app = FastAPI(
+    title="User Service",
+    description="Manages user authentication and registration",
+    version="1.0.0",
+    openapi_tags=[
+        {
+            "name": "auth",
+            "description": "Endpoints for user login, registration, and verification"
+        }
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,

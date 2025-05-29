@@ -5,7 +5,17 @@ from .routers import villas
 from dotenv import load_dotenv
 
 load_dotenv()
-app = FastAPI()
+app = FastAPI(
+    title="Villa Service",
+    description="Manages villa creation, updates, and retrieval",
+    version="1.0.0",
+    openapi_tags=[
+        {
+            "name": "villas",
+            "description": "Endpoints for managing villa data and images"
+        }
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,

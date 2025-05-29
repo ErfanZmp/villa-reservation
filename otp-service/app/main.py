@@ -5,7 +5,17 @@ from .redis_client import redis_client
 import random
 import string
 
-app = FastAPI()
+app = FastAPI(
+    title="OTP Service",
+    description="Handles one-time password (OTP) generation and verification",
+    version="1.0.0",
+    openapi_tags=[
+        {
+            "name": "otp",
+            "description": "Endpoints for generating and verifying OTPs"
+        }
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,13 +32,13 @@ class OTPValidateRequest(BaseModel):
     phone_number: str
     otp: str
 
-@app.post("/otp/generate")
+@app.post("/otp/generate", tags=["otp"], summary="Generate OTP for a phone number")
 async def generate_otp(request: OTPRequest):
     otp = ''.join(random.choices(string.digits, k=6))
     redis_client.setex(f"otp:{request.phone_number}", 300, otp)  # 5-minute TTL
     return {"message": "OTP generated", "otp": otp}  # For testing
 
-@app.post("/otp/validate")
+@app.post("/otp/validate", tags=["otp"], summary="Validate OTP for a phone number")
 async def validate_otp(request: OTPValidateRequest):
     stored_otp = redis_client.get(f"otp:{request.phone_number}")
     if not stored_otp or stored_otp != request.otp:
