@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from ..models import Villa
-from ..dependencies import get_db, get_current_admin
-from typing import List
+from typing import List, Optional
 import httpx
+import json
 from dotenv import load_dotenv
 import os
+
+from ..models import Villa
+from ..dependencies import get_db, get_current_admin
 
 load_dotenv()
 MEDIA_SERVICE_URL = os.getenv("MEDIA_SERVICE_URL")
@@ -43,33 +45,78 @@ class VillaResponse(BaseModel):
     rating: float
 
 @router.post("/", response_model=VillaResponse)
-async def create_villa(villa: VillaCreate, image: UploadFile = File(...), db: Session = Depends(get_db), admin: dict = Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        files = {"file": (image.filename, await image.read(), image.content_type)}
-        response = await client.post(f"{MEDIA_SERVICE_URL}/media/upload", files=files)
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to upload image")
-        image_url = response.json().get("url")
-    db_villa = Villa(**villa.dict(), images=image_url)
-    db.add(db_villa)
-    db.commit()
-    db.refresh(db_villa)
-    return db_villa
+async def create_villa(
+    villa: str = Form(...),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    try:
+        villa_data = json.loads(villa)
+        villa_obj = VillaCreate(**villa_data)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=422, detail="Invalid JSON format for villa")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Villa validation error: {str(e)}")
 
-@router.put("/{villa_id}", response_model=VillaResponse)
-async def update_villa(villa_id: int, villa: VillaCreate, image: UploadFile = File(None), db: Session = Depends(get_db), admin: dict = Depends(get_current_admin)):
-    db_villa = db.query(Villa).filter(Villa.id == villa_id).first()
-    if not db_villa:
-        raise HTTPException(status_code=404, detail="Villa not found")
-    image_url = db_villa.images
-    if image:
+    # Upload image to media-service
+    try:
         async with httpx.AsyncClient() as client:
             files = {"file": (image.filename, await image.read(), image.content_type)}
             response = await client.post(f"{MEDIA_SERVICE_URL}/media/upload", files=files)
             if response.status_code != 200:
                 raise HTTPException(status_code=500, detail="Failed to upload image")
             image_url = response.json().get("url")
-    for key, value in villa.dict().items():
+            if not image_url:
+                raise HTTPException(status_code=500, detail="No image URL returned from media-service")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image upload error: {str(e)}")
+
+    # Create villa in database
+    db_villa = Villa(**villa_obj.model_dump(), images=image_url)
+    db.add(db_villa)
+    db.commit()
+    db.refresh(db_villa)
+    return db_villa
+
+@router.put("/{villa_id}", response_model=VillaResponse)
+async def update_villa(
+    villa_id: int,
+    villa: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    db_villa = db.query(Villa).filter(Villa.id == villa_id).first()
+    if not db_villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+
+    # Parse and validate villa data
+    try:
+        villa_data = json.loads(villa)
+        villa_obj = VillaCreate(**villa_data)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=422, detail="Invalid JSON format for villa")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Villa validation error: {str(e)}")
+
+    # Handle image upload if provided
+    image_url = db_villa.images
+    if image:
+        try:
+            async with httpx.AsyncClient() as client:
+                files = {"file": (image.filename, await image.read(), image.content_type)}
+                response = await client.post(f"{MEDIA_SERVICE_URL}/media/upload", files=files)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=500, detail="Failed to upload image")
+                image_url = response.json().get("url")
+                if not image_url:
+                    raise HTTPException(status_code=500, detail="No image URL returned from media-service")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Image upload error: {str(e)}")
+
+    # Update villa attributes
+    for key, value in villa_obj.model_dump().items():
         setattr(db_villa, key, value)
     db_villa.images = image_url
     db.commit()
