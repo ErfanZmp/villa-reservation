@@ -278,11 +278,11 @@ villa-reservation-system/
 │   │   └── redis_client.py
 │── villa-service/
 │   ├── app/
-    │   ├── dependencies.py
-    │   ├── main.py
-    │   ├── models.py
-    │   └── routers/
-    │       └── villas.py
+│   │   ├── dependencies.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   └── routers/
+│   │       └── villas.py
 │── reservation-service/
 │   ├── app/
 │   │   ├── dependencies.py
@@ -296,7 +296,7 @@ villa-reservation-system/
 │   │   ├── main.py
 │   │   └── minio_client.py
 ├── .env
-├── docker-compose.yml
+└── docker-compose.yml
 ```
 
 ### Extending the Project
