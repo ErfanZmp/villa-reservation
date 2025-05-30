@@ -62,7 +62,7 @@ The system is composed of five microservices, each handling a specific domain:
 
 ### Prerequisites
 - **Docker** and **Docker Compose** installed.
-- **Python 3.9+** (optional, for local development without Docker).
+- **Python 3.9+** (for generating admin user credentials).
 - A modern web browser to access Swagger UI.
 
 ### Installation
@@ -70,7 +70,7 @@ The system is composed of five microservices, each handling a specific domain:
 1. **Clone the Repository**:
    ```bash
    git clone https://github.com/ErfanZmp/villa-reservation.git
-   cd villa-reservation
+   cd villa-reservation-system
    ```
 
 2. **Set Up Environment Variables**:
@@ -103,7 +103,63 @@ The system is composed of five microservices, each handling a specific domain:
    ```
    This starts all services, PostgreSQL, Redis, and MinIO.
 
-4. **Verify Services**:
+4. **Initialize an Admin User**:
+   Admin users are required to manage villas and reservations. Follow these steps to create an admin user:
+
+   a. **Generate Hashed Password**:
+   Create a Python script (e.g., `generate_admin.py`) to hash the admin password:
+   ```python
+   from passlib.context import CryptContext
+
+   pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+   password = "admin"  # Change this to a secure password
+   hashed_password = pwd_context.hash(password)
+
+   query = f"""
+   INSERT INTO users (first_name, last_name, national_code, phone_number, role, hashed_password)
+   VALUES (
+       'Super',
+       'Admin',
+       '0000000001',
+       '09123456789',
+       'admin',
+       '{hashed_password}'
+   );
+   """
+
+   print(query)
+   ```
+   Run the script:
+   ```bash
+   python generate_admin.py
+   ```
+   Copy the generated SQL query (e.g., `INSERT INTO users ...`).
+
+   b. **Execute the Query**:
+   Access the PostgreSQL container:
+   ```bash
+   docker exec -it villa-reservation_db_1 psql -U admin -d villa_db
+   ```
+   Paste the SQL query and run it:
+   ```sql
+   INSERT INTO users (first_name, last_name, national_code, phone_number, role, hashed_password)
+   VALUES (
+       'Super',
+       'Admin',
+       '0000000001',
+       '09123456789',
+       'admin',
+       'hashed_password_here'
+   );
+   ```
+   Exit `psql` with `\q`.
+
+   c. **Security Note**:
+   - Change the default password (`admin`) to a strong, unique password.
+   - Store the hashed password securely and avoid reusing it.
+   - Run this query only once to avoid duplicate users (the `phone_number` is unique).
+
+5. **Verify Services**:
    - User Service: `http://localhost:8001/docs`
    - OTP Service: `http://localhost:8005/docs`
    - Villa Service: `http://localhost:8002/docs`
@@ -116,11 +172,11 @@ The system is composed of five microservices, each handling a specific domain:
 #### 1. Authenticate as a User
 - **Register/Login**:
   ```bash
-  curl -X POST http://localhost:8001/auth/login -H "Content-Type: application/json" -d '{"phone_number": "+0000000002"}'
+   curl -X POST http://localhost:8001/auth/login -H "Content-Type: application/json" -d '{"phone_number": "+0000000002"}'
   ```
   Check OTP in `otp-service` logs:
   ```bash
-  docker-compose logs otp-service
+   docker-compose logs otp-service
   ```
   Verify OTP:
   ```bash
@@ -128,17 +184,27 @@ The system is composed of five microservices, each handling a specific domain:
   ```
   Save the `access_token`.
 
-#### 2. Create a Villa (Admin)
-- Authenticate as an admin (`+0000000001`).
+#### 2. Authenticate as an Admin
+- Use the admin phone number (`09123456789`):
+  ```bash
+  curl -X POST http://localhost:8001/auth/login -H "Content-Type: application/json" -d '{"phone_number": "09123456789"}'
+  ```
+  Verify OTP (from `otp-service` logs):
+  ```bash
+  curl -X POST http://localhost:8001/auth/login/verify -H "Content-Type: application/json" -d '{"phone_number": "09123456789", "otp": "<otp>"}'
+  ```
+  Save the admin `access_token`.
+
+#### 3. Create a Villa (Admin)
 - Create a villa:
   ```bash
-  curl -X POST http://localhost:8002/api/v1/villas \
-  -H "Authorization: Bearer <admin-jwt-token>" \
-  -F "villa={\"title\":\"Seaside Villa\",\"city\":\"Mazandaran\",\"address\":\"123 Seaside Rd\",\"base_capacity\":5,\"maximum_capacity\":8,\"area\":400,\"bed_count\":5,\"has_pool\":false,\"has_cooling_system\":true,\"base_price_per_night\":2500,\"extra_person_price\":400,\"rating\":4.5}" \
+  curl -X POST http://localhost:8002/villas \
+  -H "Authorization: Bearer <admin-jwt-token> \
+  -F "villa={\"title\": \"Seaside Villa\", \"city\": \"Mazandaran\", \"address\": \"123 Seaside Rd\", \"base_capacity\": 5, \"maximum_capacity\": 8, \"area\": 400, \"bed_count\": 5\", \"has_pool\": false, \"has_cooling_system\": true, \"base_price_per_night\": 2500, \"extra_person_price\": 400, \"rating\": 4.5}" \
   -F "image=@/path/to/image.png"
   ```
 
-#### 3. Reserve a Villa
+#### 4. Reserve a Villa
 - Check available dates:
   ```bash
   curl http://localhost:8003/reservations/villa/1/dates
@@ -151,29 +217,31 @@ The system is composed of five microservices, each handling a specific domain:
   -d '{"villa_id":1,"check_in_date":"2025-06-01","check_out_date":"2025-06-05","people_count":5}'
   ```
 
-#### 4. Admin Operations
+#### 5. Admin Operations
 - List all reservations:
   ```bash
-  curl -X GET http://localhost:8003/reservations/admin/all \
+  curl http://GET http://localhost:8003/reservations/admin/all \
   -H "Authorization: Bearer <admin-jwt-token>"
   ```
-- List user reservations:
+- List reservations for a specific user:
   ```bash
   curl -X GET http://localhost:8003/reservations/admin/user/1 \
   -H "Authorization: Bearer <admin-jwt-token>"
+  \
   ```
 - Delete a reservation:
   ```bash
   curl -X DELETE http://localhost:8003/reservations/admin/1 \
   -H "Authorization: Bearer <admin-jwt-token>"
+  \
   ```
 
 ## 📚 API Documentation
 
-Each service provides interactive Swagger UI:
-- **User Service**: `http://localhost:8001/docs` (auth endpoints)
+Each service provides an interactive API documentation via Swagger UI:
+- **User Service**: `http://localhost:8001/docs` (authentication endpoints)
 - **OTP Service**: `http://localhost:8005/docs` (OTP management)
-- **Villa Service**: `http://localhost:8002/docs` (villa CRUD)
+- **Villa Service**: `http://localhost:8002/docs` (villa CRUD operations)
 - **Reservation Service**: `http://localhost:8003/docs` (reservations, tagged as `user-reservations`, `villa-dates`, `admin-reservations`)
 - **Media Service**: `http://localhost:8004/docs` (image upload/retrieval)
 
@@ -191,43 +259,51 @@ Endpoints are tagged and described for clarity, with examples and schemas.
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
    ```
-   Ensure dependencies (PostgreSQL, Redis, MinIO) are running via Docker.
+   Ensure dependencies are installed (`PostgreSQL`, `Redis`, `MinIO`) are running via Docker.
 
 ### Project Structure
 ```
 villa-reservation-system/
-├── user-service/
+│── user-service/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── schemas/
-│   │   ├── models/
 │   │   ├── dependencies.py
-├── otp-service/
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   └── routers/
+│   │       ├── auth.py
+│   │       └── users.py
+│── otp-service/
 │   ├── app/
 │   │   ├── main.py
-├── villa-service/
+│   │   └── redis_client.py
+│── villa-service/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── api/v1/routers/villa.py
-│   │   ├── schemas/villa.py
-├── reservation-service/
+    │   ├── dependencies.py
+    │   ├── main.py
+    │   ├── models.py
+    │   └── routers/
+    │       └── villas.py
+│── reservation-service/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── api/v1/routers/admin.py
-│   │   ├── models/
 │   │   ├── dependencies.py
-├── media-service/
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   └── routers/
+│   │       ├── admin.py
+│   │       └── reservations.py
+│── media-service/
 │   ├── app/
 │   │   ├── main.py
+│   │   └── minio_client.py
 ├── .env
 ├── docker-compose.yml
 ```
 
 ### Extending the Project
-- **Add Notifications**: Integrate email/SMS via `otp-service` for reservation confirmations.
+- **Add Notifications**: Integrate email or SMS notifications for reservation confirmations via `otp-service`.
 - **Soft Delete**: Implement soft deletion for reservations with an `is_deleted` flag.
-- **Pagination**: Add offset/limit to reservation list endpoints.
-- **Frontend**: Build a React/Vue.js frontend to interact with the APIs.
+- **Pagination**: Add offset or limit pagination to reservation list endpoints.
+- **Frontend**: Build a React or Vue.js frontend to interact with the APIs.
 
 ## 🔍 Troubleshooting
 
@@ -238,28 +314,28 @@ villa-reservation-system/
   - Ensure `JWT_SECRET` is consistent across services.
   - Check OTP logs for verification failures.
 - **Image Upload Failures**:
-  - Confirm MinIO is running: `http://localhost:9001`
-  - Verify `MINIO_BUCKET_NAME` and credentials.
+  - Confirm MinIO is running: `http://localhost:minio:9001/minio  - Verify `MINIO_BUCKET_NAME` and credentials.
 - **Reservation Overlaps**:
   - Use `GET /reservations/villa/{villa_id}/dates` to check reserved dates.
 
 ## 📝 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/Lour/License/blob/main/LICENSE) file for details.
 
 ## 🙌 Contributing
 
 Contributions are welcome! Please:
 1. Fork the repository.
 2. Create a feature branch (`git checkout -b feature/your-feature`).
-3. Commit changes (`git commit -m 'Add your feature'`).
+3. Commit your changes (`git commit -m 'Add your feature'`).
 4. Push to the branch (`git push origin feature/your-feature`).
 5. Open a Pull Request.
 
 ## 📬 Contact
 
-For questions or feedback, open an issue on GitHub or contact the maintainer at `your-email@example.com`.
+For questions or feedback, please open an issue on [GitHub](https://github.com/ErfanZmp/villa-reservation) or contact the maintainer at `erfanzamirpour@gmail.com`.
 
 ---
 
 Happy booking! 🏡
+```
