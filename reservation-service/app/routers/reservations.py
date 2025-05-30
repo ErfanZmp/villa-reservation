@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..models import Reservation
-from ..dependencies import get_db, get_current_user, get_current_admin
+from ..dependencies import get_db, get_current_user
 from datetime import date
 import httpx
 from dotenv import load_dotenv
