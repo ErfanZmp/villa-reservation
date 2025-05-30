@@ -220,18 +220,18 @@ The system is composed of five microservices, each handling a specific domain:
 #### 5. Admin Operations
 - List all reservations:
   ```bash
-  curl http://GET http://localhost:8003/reservations/admin/all \
+  curl http://GET http://localhost:8003/admin/all \
   -H "Authorization: Bearer <admin-jwt-token>"
   ```
 - List reservations for a specific user:
   ```bash
-  curl -X GET http://localhost:8003/reservations/admin/user/1 \
+  curl -X GET http://localhost:8003/admin/user/1 \
   -H "Authorization: Bearer <admin-jwt-token>"
   \
   ```
 - Delete a reservation:
   ```bash
-  curl -X DELETE http://localhost:8003/reservations/admin/1 \
+  curl -X DELETE http://localhost:8003/admin/1 \
   -H "Authorization: Bearer <admin-jwt-token>"
   \
   ```
