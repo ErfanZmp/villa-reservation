@@ -338,4 +338,3 @@ For questions or feedback, please open an issue on [GitHub](https://github.com/E
 ---
 
 Happy booking! 🏡
-```
