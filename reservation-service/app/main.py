@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from . import models
-from .routers import reservations
+from .routers import reservations, admin
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +12,10 @@ app = FastAPI(
         {
             "name": "reservations",
             "description": "Endpoints for managing villa reservations"
+        },
+        {
+            "name": "admin",
+            "description": "Admin endpoints for managing reservations"
         }
     ]
 )
@@ -19,6 +23,7 @@ app = FastAPI(
 models.Base.metadata.create_all(bind=models.engine)
 
 app.include_router(reservations.router, prefix="/reservations", tags=["reservations"])
+app.include_router(admin.router, prefix="/reservations/admin", tags=["admin"])
 
 @app.get("/", tags=["root"], summary="Root Endpoint of the Reservation Service")
 def read_root():
