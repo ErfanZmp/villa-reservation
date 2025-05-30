@@ -70,7 +70,7 @@ The system is composed of five microservices, each handling a specific domain:
 1. **Clone the Repository**:
    ```bash
    git clone https://github.com/ErfanZmp/villa-reservation.git
-   cd villa-reservation-system
+   cd villa-reservation
    ```
 
 2. **Set Up Environment Variables**:
